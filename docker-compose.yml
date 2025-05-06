@@ -1,0 +1,7 @@
+services:
+  pg-client:
+    build: .
+    container_name: secure_pg_client
+    env_file:
+      - .env
+    restart: on-failure

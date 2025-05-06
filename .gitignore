@@ -1,0 +1,50 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.env
+.venv/
+venv/
+pip-wheel-metadata/
+
+# --- macOS ---
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.Spotlight-V100
+.Trashes
+.DS_Store?
+
+# --- VS Code ---
+.vscode/
+*.code-workspace
+
+# --- Docker / Podman ---
+*.log
+docker-compose.override.yml
+podman-compose.override.yml
+*.pid
+*.seed
+*.bak
+*.swp
+*.swo
+
+# --- OS-generated ---
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# --- General ---
+*.tar
+*.gz
+*.zip
+*.tmp
