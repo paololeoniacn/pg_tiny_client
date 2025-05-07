@@ -1,0 +1,51 @@
+{% extends "layout.html" %}
+
+{% block title %}Home - PG Tiny Client{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold text-gray-800 mb-4">PG Tiny Client UI</h1>
+
+<form method="POST" class="mb-4">
+    <textarea id="query" name="query" rows="4" class="w-full p-2 border rounded"
+        placeholder="Enter your SQL query...">{{ query }}</textarea>
+    <button type="submit" class="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Run Query</button>
+    <button type="button" class="mt-2 px-4 py-2 bg-cyan-500 text-white rounded hover:bg-cyan-600"
+        onclick="insertTriggerQuery()">Trigger Query</button>
+</form>
+
+<hr>
+
+{% if result %}
+<div class="mt-4 bg-white p-4 rounded shadow">
+    <h2 class="text-lg font-semibold mb-2">Result:</h2>
+
+    {% if result is string %}
+    <div class="text-sm text-gray-700 whitespace-pre-wrap break-words max-w-full">
+        {{ result }}
+    </div>
+    {% else %}
+    <pre class="text-sm text-gray-700 overflow-auto">{{ result | tojson(indent=2) }}</pre>
+    {% endif %}
+</div>
+{% endif %}
+
+<script>
+    function insertTriggerQuery() {
+        const query = `SELECT
+            event_object_schema AS schema,
+            event_object_table AS table,
+            trigger_name,
+            action_timing AS timing,
+            event_manipulation AS event,
+            action_orientation AS orientation,
+            action_statement AS definition
+        FROM
+            information_schema.triggers
+        ORDER BY
+            event_object_schema,
+            event_object_table,
+            trigger_name;`;
+        document.getElementById("query").value = query;
+    }
+</script>
+{% endblock %}

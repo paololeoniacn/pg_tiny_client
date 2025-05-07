@@ -1,0 +1,34 @@
+{% extends "layout.html" %}
+{% block content %}
+<h1 class="text-2xl font-bold mb-6">Configurazione Connessione al Database</h1>
+
+<form method="POST" class="space-y-4">
+    {% for key in ["host", "port", "name", "user", "password"] %}
+        <div>
+            <label class="block font-semibold">{{ key.capitalize() }}</label>
+            <input type="text" name="{{ key }}" value="{{ config[key] }}"
+                   class="w-full p-2 border rounded" />
+        </div>
+    {% endfor %}
+    <div class="flex space-x-4">
+        <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Salva</button>
+        <button type="submit" name="delete" value="1"
+                class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                onclick="return confirm('Sei sicuro di voler eliminare la configurazione personalizzata?')">
+            Cancella configurazione
+        </button>
+    </div>
+</form>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        <div class="mt-6">
+            {% for category, message in messages %}
+                <div class="p-4 rounded bg-{{ 'green' if category == 'success' else 'red' if category == 'warning' else 'blue' }}-100 text-sm text-gray-800">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+{% endwith %}
+{% endblock %}

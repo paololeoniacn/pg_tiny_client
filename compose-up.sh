@@ -64,6 +64,7 @@ if [[ "$confirm" == "delete" ]]; then
 else
   # OK, avviso e avvio
   echo "✅ Tutti i prerequisiti sono soddisfatti — avvio lo stack…"
+  podman-compose down
   podman-compose up --build # poi avvia il resto dello stack
 fi
 
