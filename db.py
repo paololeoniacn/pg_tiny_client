@@ -77,9 +77,10 @@ def get_default_tables():
     result = run_query(DEFAULT_QUERY)
 
     if isinstance(result, list) and not result:
-        return "Nessuna tabella trovata nel database."
+        return json.dumps({"message": "Nessuna tabella trovata nel database."}, ensure_ascii=False)
 
-    return result
+    # se result è già una lista di dict, basta serializzarla
+    return json.dumps(result, ensure_ascii=False)
 
 
 def get_connection():
@@ -103,16 +104,43 @@ def get_connection():
 
 
 def run_query(query):
+    """
+    Esegue la query e restituisce, se ci sono righe,
+    una lista di dict {colonna: valore} altrimenti un messaggio JSON.
+    """
     logger.info("Esecuzione query: %s", query)
     try:
         with get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(query)
-                try:
-                    logger.info("quering...")
-                    return cur.fetchall()
-                except psycopg.errors.NoData:
-                    return "Query eseguita con successo (nessun risultato)."
+                # se la query restituisce colonne (SELECT, etc.)
+                if cur.description:
+                    # raccogli i nomi delle colonne
+                    cols = [desc.name for desc in cur.description]
+                    rows = cur.fetchall()
+                    # mappa ogni tupla in un dizionario colonna->valore
+                    result = [dict(zip(cols, row)) for row in rows]
+                    return result
+                else:
+                    # query senza risultato tabellare (es. DDL, UPDATE senza RETURNING)
+                    return [{"message": "Query eseguita con successo (nessun risultato)."}]
     except Exception as e:
         logger.error("Errore nell'esecuzione della query: %s", e)
-        return f"Errore: {e}"
+        # restituisci un dict di errore, serializzabile in JSON
+        return [{"error": str(e)}]
+
+def get_table_fullnames():
+    """
+    Esegue la SELECT su pg_catalog.pg_tables e
+    restituisce una lista di 'schemaname.tablename'.
+    """
+    rows = run_query(DEFAULT_QUERY)
+    if not isinstance(rows, list):
+        # in caso di errore o messaggio, ritorna lista vuota
+        return []
+    fullnames = []
+    for row in rows:
+        # assicurati che row sia dict con le chiavi giuste
+        if isinstance(row, dict) and "schemaname" in row and "tablename" in row:
+            fullnames.append(f"{row['schemaname']}.{row['tablename']}")
+    return fullnames

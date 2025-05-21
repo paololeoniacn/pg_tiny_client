@@ -37,22 +37,16 @@
             <p>DB info non disponibile</p>
             {% endif %}
 
-            {% if table_list is iterable %}
-            <div class="mt-4">
+            <ul class="sidebar-table-list">
+                {% if not table_list %}
+                <li class="text-gray-500">Nessuna tabella trovata.</li>
+                {% else %}
                 <h2 class="text-sm font-semibold text-gray-600">📄 Tabelle disponibili:</h2>
-                <ul class="text-sm text-gray-700 ml-2">
-                    {% for schema, table in table_list %}
-                    <li>{{ schema }}.{{ table }}</li>
-                    {% endfor %}
-                </ul>
-            </div>
-            {% else %}
-            <div class="text-sm text-red-500 mt-2">
-                {{ table_list }}
-            </div>
-            {% endif %}
-
-
+                {% for fullname in table_list %}
+                <li>{{ fullname }}</li>
+                {% endfor %}
+                {% endif %}
+            </ul>
         </aside>
 
         <!-- Main content -->

@@ -6,6 +6,7 @@ from db import (
     get_db_info,
     load_db_config,
     get_default_tables,
+    get_table_fullnames,
     DEFAULT_QUERY,
     TRIGGER_QUERY,
 )
@@ -22,7 +23,7 @@ app.secret_key = "your-secret-key"  # Necessario per flash messages
 
 @app.context_processor
 def inject_globals():
-    return dict(db_info=get_db_info(), table_list=get_default_tables())
+    return dict(db_info=get_db_info(), table_list=get_table_fullnames())
 
 
 CONFIG_FILE = "db_config.json"
