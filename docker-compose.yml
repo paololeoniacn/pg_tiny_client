@@ -7,3 +7,5 @@ services:
     env_file:
       - .env
     restart: on-failure
+    volumes:
+      - ./data:/app/data 

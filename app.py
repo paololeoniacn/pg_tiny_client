@@ -27,6 +27,7 @@ def inject_globals():
 
 
 CONFIG_FILE = "db_config.json"
+QUERY_HISTORY_FILE = "data/query_history.json"
 
 
 @app.errorhandler(404)
@@ -42,19 +43,22 @@ def internal_error(e):
 
 @app.route("/", methods=["GET", "POST"])
 def index():
-    query = request.form.get("query")
-    result = None  # Inizializzazione sicura
+    raw_query = request.form.get("query")
+    result = None
+    cleaned_query = ""
+
     if request.method == "POST":
-        if query:
-            result = run_query(query)
+        if raw_query:
+            cleaned_query = clean_submitted_query(raw_query)
+            save_query_to_history(cleaned_query)
+            result = run_query(cleaned_query)
         else:
             result = get_default_tables()
     else:
-        # GET: mostra tabelle di default
         result = get_default_tables()
-        query = DEFAULT_QUERY
+        raw_query = DEFAULT_QUERY
+        cleaned_query = clean_submitted_query(DEFAULT_QUERY)
 
-    # Se è una lista vuota, mostra un messaggio chiaro
     if isinstance(result, list) and len(result) == 0:
         result = "Nessun risultato trovato per la query eseguita."
 
@@ -62,8 +66,57 @@ def index():
     return render_template(
         "index.html",
         result=result,
-        query=query,
+        query=raw_query,
+        executed_query=cleaned_query,
+        history=load_query_history(),
     )
+
+
+def load_query_history():
+    if os.path.exists(QUERY_HISTORY_FILE):
+        with open(QUERY_HISTORY_FILE, "r") as f:
+            return json.load(f)
+    return []
+
+
+def clean_submitted_query(query: str) -> str:
+    # Rimuove le righe che iniziano con --
+    cleaned_lines = []
+    for line in query.splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("--") and stripped != "":
+            cleaned_lines.append(line)
+    return "\n".join(cleaned_lines)
+
+
+import datetime
+
+
+def save_query_to_history(query: str):
+    query = query.strip()
+    entry = {
+        "timestamp": datetime.datetime.now().isoformat(timespec="seconds"),
+        "query": query
+    }
+
+    if os.path.exists(QUERY_HISTORY_FILE):
+        with open(QUERY_HISTORY_FILE, "r") as f:
+            history = json.load(f)
+    else:
+        history = []
+
+    # 🔍 Verifica se esiste già (ignorando spazi)
+    if any(q["query"].strip() == query for q in history):
+        return  # Non salva se già presente
+
+    # Aggiunge in cima
+    history.insert(0, entry)
+
+    # Limita la lunghezza dello storico (es. max 20)
+    history = history[:20]
+
+    with open(QUERY_HISTORY_FILE, "w") as f:
+        json.dump(history, f, indent=2)
 
 
 @app.route("/triggers", methods=["GET"])

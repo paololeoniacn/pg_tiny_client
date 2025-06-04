@@ -1,0 +1,6 @@
+[
+  {
+    "timestamp": "2025-06-04T12:14:51",
+    "query": "SELECT al.*, r.identifier, r.status FROM mitur_test.mt_activity_log al LEFT JOIN mitur_test.info_in_aem_fdb r ON al.id_request = r.id WHERE al.proc_name = 'Send Status Feedback'   ORDER BY id_log DESC;"
+  }
+]

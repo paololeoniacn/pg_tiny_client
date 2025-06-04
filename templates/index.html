@@ -15,10 +15,15 @@
 
 <hr>
 
+
 {% if result %}
 <div class="mt-4 bg-white p-4 rounded shadow">
-    <h2 class="text-lg font-semibold mb-2">Result:</h2>
-
+    {% if executed_query %}
+    <p class="text-sm text-gray-600 mb-2">
+        <strong>Query eseguita:</strong>
+    <pre class="bg-gray-100 p-2 rounded whitespace-pre-wrap">{{ executed_query }}</pre>
+    </p>
+    {% endif %}
     {% if result is string %}
     <div class="text-sm text-gray-700 whitespace-pre-wrap break-words max-w-full">
         {{ result }}
