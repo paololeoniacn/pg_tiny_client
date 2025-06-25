@@ -2,7 +2,18 @@
 {% block content %}
 <h1 class="text-2xl font-bold mb-6">Configurazione Connessione al Database</h1>
 
+<!-- Ambiente selezionato -->
+<form method="GET" action="{{ url_for('config') }}" class="mb-6">
+    <label for="env" class="block font-semibold mb-1">Ambiente</label>
+    <select name="env" id="env" onchange="this.form.submit()" class="p-2 border rounded">
+        {% for env in ["dev", "prod", "test"] %}
+            <option value="{{ env }}" {% if selected_env == env %}selected{% endif %}>{{ env|capitalize }}</option>
+        {% endfor %}
+    </select>
+</form>
+
 <form method="POST" class="space-y-4">
+    <input type="hidden" name="env" value="{{ selected_env }}">
     {% for key in ["host", "port", "name", "user", "password"] %}
         <div>
             <label class="block font-semibold">{{ key.capitalize() }}</label>

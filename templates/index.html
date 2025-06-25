@@ -6,11 +6,15 @@
 <h1 class="text-2xl font-bold text-gray-800 mb-4">PG Tiny Client UI</h1>
 
 <form method="POST" class="mb-4">
-    <textarea id="query" name="query" rows="4" class="w-full p-2 border rounded"
-        placeholder="Enter your SQL query...">{{ query }}</textarea>
+    <!-- Hidden input that will actually be submitted -->
+    <input type="hidden" name="query" id="query-hidden">
+
+    <!-- Visible SQL editor with syntax highlighting -->
+    <div id="editor" style="height: 200px;" class="border rounded">{{ query }}</div>
+
     <button type="submit" class="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Run Query</button>
     <button type="button" class="mt-2 px-4 py-2 bg-cyan-500 text-white rounded hover:bg-cyan-600"
-        onclick="insertTriggerQuery()">Trigger Query</button>
+        onclick="insertTriggerQuery()">Esegui la Trigger Query</button>
 </form>
 
 <hr>
@@ -18,19 +22,41 @@
 
 {% if result %}
 <div class="mt-4 bg-white p-4 rounded shadow">
-    {% if executed_query %}
+
+    <!-- {% if executed_query %}
     <p class="text-sm text-gray-600 mb-2">
         <strong>Query eseguita:</strong>
-    <pre class="bg-gray-100 p-2 rounded whitespace-pre-wrap">{{ executed_query }}</pre>
+        {% if executed_time %}
+        <span class="ml-2 italic text-gray-500">(eseguita il {{ executed_time }})</span>
+        {% endif %}
+        <pre class="text-sm text-gray-700 overflow-auto whitespace-pre-wrap break-words w-full">
+            {{ result | tojson(indent=2) }}
+        </pre>
     </p>
     {% endif %}
+
     {% if result is string %}
     <div class="text-sm text-gray-700 whitespace-pre-wrap break-words max-w-full">
         {{ result }}
     </div>
     {% else %}
     <pre class="text-sm text-gray-700 overflow-auto">{{ result | tojson(indent=2) }}</pre>
+    {% endif %} -->
+
+    {% if executed_query %}
+    <p class="text-sm text-gray-600 mb-2">
+        <strong>Query eseguita:</strong>
+        {% if executed_time %}
+        <span class="ml-2 italic text-gray-500">(eseguita il {{ executed_time }})</span>
+        {% endif %}
+    </p>
     {% endif %}
+
+<pre class="text-sm text-gray-700 whitespace-pre-wrap break-words w-full overflow-auto">
+{{ result | tojson(indent=2) }}
+</pre>
+
+
 </div>
 {% endif %}
 
@@ -50,7 +76,55 @@
             event_object_schema,
             event_object_table,
             trigger_name;`;
-        document.getElementById("query").value = query;
+        editor.setValue(query, -1);
+
     }
 </script>
+
+<!-- Ace Editor -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.14/ace.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.14/mode-sql.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.14/theme-textmate.js"></script>
+
+<script>
+    const editor = ace.edit("editor");
+    editor.setTheme("ace/theme/textmate");
+    editor.session.setMode("ace/mode/sql");
+    editor.setOptions({
+        fontSize: "14px",
+        showPrintMargin: false,
+        wrap: true
+    });
+
+    // Inizializza con contenuto esistente
+    editor.setValue({{ query | tojson | safe }}, -1);
+
+    // Al submit, copia il contenuto nel campo hidden
+    document.querySelector("form").addEventListener("submit", function () {
+        const queryText = editor.getValue();
+        console.log("Query sottomessa:", queryText);  // 👈 LOG PER DEBUG
+        document.getElementById("query-hidden").value = queryText;
+    });
+
+
+    // Funzione per inserire la trigger query direttamente
+    function insertTriggerQuery() {
+        const triggerQuery = `SELECT
+    event_object_schema AS schema,
+    event_object_table AS table,
+    trigger_name,
+    action_timing AS timing,
+    event_manipulation AS event,
+    action_orientation AS orientation,
+    action_statement AS definition
+FROM
+    information_schema.triggers
+ORDER BY
+    event_object_schema,
+    event_object_table,
+    trigger_name;`;
+        editor.setValue(triggerQuery, -1);
+    }
+</script>
+
 {% endblock %}

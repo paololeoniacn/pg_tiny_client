@@ -9,8 +9,13 @@ from db import (
     get_table_fullnames,
     DEFAULT_QUERY,
     TRIGGER_QUERY,
+    safe_env
 )
 import logging
+from zoneinfo import ZoneInfo
+from dotenv import dotenv_values
+import datetime
+
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
@@ -23,7 +28,11 @@ app.secret_key = "your-secret-key"  # Necessario per flash messages
 
 @app.context_processor
 def inject_globals():
-    return dict(db_info=get_db_info(), table_list=get_table_fullnames())
+    selected_env = safe_env(request.args.get("env", "dev"))
+    return dict(
+        db_info=get_db_info(selected_env),
+        table_list=get_table_fullnames(selected_env)
+    )
 
 
 CONFIG_FILE = "db_config.json"
@@ -43,21 +52,25 @@ def internal_error(e):
 
 @app.route("/", methods=["GET", "POST"])
 def index():
+    selected_env = safe_env(request.args.get("env", "dev"))
     raw_query = request.form.get("query")
     result = None
     cleaned_query = ""
+
+    timestamp = datetime.datetime.now(ZoneInfo("Europe/Rome")).strftime("%Y-%m-%d %H:%M:%S")
 
     if request.method == "POST":
         if raw_query:
             cleaned_query = clean_submitted_query(raw_query)
             save_query_to_history(cleaned_query)
-            result = run_query(cleaned_query)
+            result = run_query(cleaned_query, env=selected_env)
         else:
-            result = get_default_tables()
+            result = get_default_tables(env=selected_env)
     else:
-        result = get_default_tables()
+        result = get_default_tables(env=selected_env)
         raw_query = DEFAULT_QUERY
         cleaned_query = clean_submitted_query(DEFAULT_QUERY)
+
 
     if isinstance(result, list) and len(result) == 0:
         result = "Nessun risultato trovato per la query eseguita."
@@ -69,6 +82,7 @@ def index():
         query=raw_query,
         executed_query=cleaned_query,
         history=load_query_history(),
+        executed_time=timestamp
     )
 
 
@@ -87,10 +101,6 @@ def clean_submitted_query(query: str) -> str:
         if not stripped.startswith("--") and stripped != "":
             cleaned_lines.append(line)
     return "\n".join(cleaned_lines)
-
-
-import datetime
-
 
 def save_query_to_history(query: str):
     query = query.strip()
@@ -121,56 +131,52 @@ def save_query_to_history(query: str):
 
 @app.route("/triggers", methods=["GET"])
 def show_triggers():
-    result = run_query(TRIGGER_QUERY)
+    selected_env = safe_env(request.args.get("env", "dev"))
+    result = run_query(TRIGGER_QUERY, env=selected_env)
     return render_template(
         "index.html",
         result=result,
         query=TRIGGER_QUERY,
     )
 
-
 @app.route("/config", methods=["GET", "POST"])
 def config():
-    # Se il file non esiste, restituisci valori vuoti per il form
-    if os.path.exists(CONFIG_FILE):
-        config_data = load_db_config()
-    else:
-        config_data = {"host": "", "port": "", "name": "", "user": "", "password": ""}
+    selected_env = safe_env(request.args.get("env") or request.form.get("env") or "dev")
+    env_filename = f"env.{selected_env}"
 
     if request.method == "POST":
         if "delete" in request.form:
-            if os.path.exists(CONFIG_FILE):
-                os.remove(CONFIG_FILE)
-                flash(
-                    "Configurazione eliminata. Ora vengono usati i valori di default da .env.",
-                    "warning",
-                )
+            if os.path.exists(env_filename):
+                os.remove(env_filename)
+                flash(f"Configurazione '{env_filename}' eliminata.", "warning")
             else:
                 flash("Nessun file di configurazione da eliminare.", "info")
-            return render_template(
-                "config.html",
-                config=config_data,
-            )
+        else:
+            # Salvataggio nuovo contenuto
+            with open(env_filename, "w") as f:
+                f.write(f"DB_HOST={request.form['host']}\n")
+                f.write(f"DB_PORT={request.form['port']}\n")
+                f.write(f"DB_NAME={request.form['name']}\n")
+                f.write(f"DB_USER={request.form['user']}\n")
+                f.write(f"DB_PASSWORD={request.form['password']}\n")
+            flash(f"Configurazione '{env_filename}' salvata con successo!", "success")
 
-        # Altrimenti è un salvataggio
-        config_data["host"] = request.form["host"]
-        config_data["port"] = request.form["port"]
-        config_data["name"] = request.form["name"]
-        config_data["user"] = request.form["user"]
-        config_data["password"] = request.form["password"]
+    # Carica valori correnti, se esistono
+    config_data = dotenv_values(env_filename) if os.path.exists(env_filename) else {}
 
-        with open(CONFIG_FILE, "w") as f:
-            json.dump(config_data, f, indent=2)
-
-        flash("Configurazione aggiornata!", "success")
-        return render_template(
-            "config.html",
-            config=config_data,
-        )
+    # Prepara dati per il form
+    config_data = {
+        "host": config_data.get("DB_HOST", ""),
+        "port": config_data.get("DB_PORT", ""),
+        "name": config_data.get("DB_NAME", ""),
+        "user": config_data.get("DB_USER", ""),
+        "password": config_data.get("DB_PASSWORD", "")
+    }
 
     return render_template(
         "config.html",
         config=config_data,
+        selected_env=selected_env
     )
 
 

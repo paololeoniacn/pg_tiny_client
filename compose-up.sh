@@ -56,7 +56,7 @@ EOF
 fi
 
 echo ""
-read -p "❓ Digita 'delete' per eliminare lo stack precedente: " confirm
+# read -p "❓ Digita 'delete' per eliminare lo stack precedente: " confirm
 
 if [[ "$confirm" == "delete" ]]; then
   echo "🔄 Pulizia dei container precedenti…"

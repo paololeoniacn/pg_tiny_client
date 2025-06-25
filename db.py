@@ -14,6 +14,12 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 logger.info("Variabili d'ambiente caricate.")
 
+# Ambienti supportati
+VALID_ENVS = {"dev", "prod", "test"}
+
+def safe_env(env):
+    return env if env in VALID_ENVS else "dev"
+
 CONFIG_FILE = "db_config.json"
 
 DEFAULT_QUERY = """
@@ -40,41 +46,44 @@ ORDER BY
 """
 
 
-def load_db_config():
-    """Ritorna la configurazione del DB. Se esiste db_config.json, ha la precedenza su .env."""
+def load_db_config(env: str = None):
+    """Carica config da .env.<env>, ENV standard o db_config.json"""
+    env_file = f".env.{env}" if env else ".env"
+    if os.path.exists(env_file):
+        load_dotenv(env_file, override=True)
+        logger.info(f"✅ Configurazione DB caricata da {env_file}")
+
     config = {
         "host": os.getenv("DB_HOST"),
         "port": os.getenv("DB_PORT"),
-        # "name": os.getenv("DB_NAME"),
-        "name": "postgres",
+        "name": os.getenv("DB_NAME") or "postgres",
         "user": os.getenv("DB_USER"),
         "password": os.getenv("DB_PASSWORD"),
     }
+
+    logger.info(f"📦 Config caricato: {config}")
 
     if os.path.exists(CONFIG_FILE):
         try:
             with open(CONFIG_FILE) as f:
                 file_config = json.load(f)
                 logger.info("✅ Configurazione DB letta da db_config.json")
-                config.update(
-                    {k: v for k, v in file_config.items() if v}
-                )  # sovrascrive solo se il valore non è vuoto
+                config.update({k: v for k, v in file_config.items() if v})
         except Exception as e:
             logger.warning("⚠️ Errore nella lettura di db_config.json: %s", e)
     else:
         logger.info("✅ Configurazione DB letta da ENV")
+
     return config
 
-
-def get_db_info():
+def get_db_info(env="dev"):
     """Ritorna solo i dati non sensibili per visualizzazione UI."""
-    config = load_db_config()
+    config = load_db_config(env)
     return {k: config[k] for k in ("host", "port", "name", "user")}
 
-
-def get_default_tables():
+def get_default_tables(env="dev"):
     logger.info("Esecuzione query default per elencare le tabelle.")
-    result = run_query(DEFAULT_QUERY)
+    result = run_query(DEFAULT_QUERY, env=env)
 
     if isinstance(result, list) and not result:
         return json.dumps({"message": "Nessuna tabella trovata nel database."}, ensure_ascii=False)
@@ -83,10 +92,10 @@ def get_default_tables():
     return json.dumps(result, ensure_ascii=False)
 
 
-def get_connection():
+def get_connection(env=None):
     logger.info("Inizio connessione DB...")
-    config = load_db_config()
-
+    config = load_db_config(env)
+    logger.info(f"🔍 Tentativo connessione a {config['host']}:{config['port']}, DB: {config['name']}")
     try:
         conn = psycopg.connect(
             host=config["host"],
@@ -103,38 +112,43 @@ def get_connection():
         raise
 
 
-def run_query(query):
+
+def run_query(query, env="dev"):
     """
-    Esegue la query e restituisce, se ci sono righe,
-    una lista di dict {colonna: valore} altrimenti un messaggio JSON.
+    Esegue una o più query separate da ';'.
+    Restituisce il risultato dell'ultima query che produce righe (SELECT, etc.)
+    oppure un messaggio se nessuna query produce risultati.
     """
     logger.info("Esecuzione query: %s", query)
     try:
-        with get_connection() as conn:
+        with get_connection(env) as conn:
             with conn.cursor() as cur:
-                cur.execute(query)
-                # se la query restituisce colonne (SELECT, etc.)
-                if cur.description:
-                    # raccogli i nomi delle colonne
-                    cols = [desc.name for desc in cur.description]
-                    rows = cur.fetchall()
-                    # mappa ogni tupla in un dizionario colonna->valore
-                    result = [dict(zip(cols, row)) for row in rows]
-                    return result
-                else:
-                    # query senza risultato tabellare (es. DDL, UPDATE senza RETURNING)
-                    return [{"message": "Query eseguita con successo (nessun risultato)."}]
+                final_result = None
+                for statement in query.split(';'):
+                    statement = statement.strip()
+                    if not statement:
+                        continue
+                    logger.info("Eseguo: %s", statement)
+                    cur.execute(statement)
+                    if cur.description:
+                        cols = [desc.name for desc in cur.description]
+                        rows = cur.fetchall()
+                        final_result = [dict(zip(cols, row)) for row in rows]
+                    else:
+                        final_result = [{"message": "Query eseguita con successo (nessun risultato)."}]
+
+                return final_result or [{"message": "Nessun risultato utile da mostrare."}]
     except Exception as e:
         logger.error("Errore nell'esecuzione della query: %s", e)
-        # restituisci un dict di errore, serializzabile in JSON
         return [{"error": str(e)}]
 
-def get_table_fullnames():
+
+def get_table_fullnames(env="dev"):
     """
     Esegue la SELECT su pg_catalog.pg_tables e
     restituisce una lista di 'schemaname.tablename'.
     """
-    rows = run_query(DEFAULT_QUERY)
+    rows = run_query(DEFAULT_QUERY, env=env)
     if not isinstance(rows, list):
         # in caso di errore o messaggio, ritorna lista vuota
         return []
