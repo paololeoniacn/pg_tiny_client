@@ -17,16 +17,20 @@ logger.info("Variabili d'ambiente caricate.")
 # Ambienti supportati
 VALID_ENVS = {"dev", "prod", "test"}
 
+
 def safe_env(env):
     return env if env in VALID_ENVS else "dev"
 
+
 CONFIG_FILE = "db_config.json"
 
-DEFAULT_QUERY = """
+GET_TABLE_LIST = """
     SELECT schemaname, tablename
     FROM pg_catalog.pg_tables
     WHERE schemaname NOT IN ('pg_catalog', 'information_schema');
 """
+
+DEFAULT_QUERY = """ SELECT 1; """
 
 TRIGGER_QUERY = """
 SELECT
@@ -59,6 +63,7 @@ def load_db_config(env: str = None):
         "name": os.getenv("DB_NAME") or "postgres",
         "user": os.getenv("DB_USER"),
         "password": os.getenv("DB_PASSWORD"),
+        "schema": os.getenv("DB_SCHEMA"),
     }
 
     logger.info(f"📦 Config caricato: {config}")
@@ -76,17 +81,21 @@ def load_db_config(env: str = None):
 
     return config
 
+
 def get_db_info(env="dev"):
     """Ritorna solo i dati non sensibili per visualizzazione UI."""
     config = load_db_config(env)
-    return {k: config[k] for k in ("host", "port", "name", "user")}
+    return {k: config[k] for k in ("host", "port", "name", "user", "schema")}
+
 
 def get_default_tables(env="dev"):
     logger.info("Esecuzione query default per elencare le tabelle.")
-    result = run_query(DEFAULT_QUERY, env=env)
+    result = run_query(GET_TABLE_LIST, env=env)
 
     if isinstance(result, list) and not result:
-        return json.dumps({"message": "Nessuna tabella trovata nel database."}, ensure_ascii=False)
+        return json.dumps(
+            {"message": "Nessuna tabella trovata nel database."}, ensure_ascii=False
+        )
 
     # se result è già una lista di dict, basta serializzarla
     return json.dumps(result, ensure_ascii=False)
@@ -95,7 +104,9 @@ def get_default_tables(env="dev"):
 def get_connection(env=None):
     logger.info("Inizio connessione DB...")
     config = load_db_config(env)
-    logger.info(f"🔍 Tentativo connessione a {config['host']}:{config['port']}, DB: {config['name']}")
+    logger.info(
+        f"🔍 Tentativo connessione a {config['host']}:{config['port']}, DB: {config['name']}"
+    )
     try:
         conn = psycopg.connect(
             host=config["host"],
@@ -112,7 +123,6 @@ def get_connection(env=None):
         raise
 
 
-
 def run_query(query, env="dev"):
     """
     Esegue una o più query separate da ';'.
@@ -121,10 +131,17 @@ def run_query(query, env="dev"):
     """
     logger.info("Esecuzione query: %s", query)
     try:
+        config = load_db_config(env)
+        schema = config.get("schema") or "public"
+
         with get_connection(env) as conn:
             with conn.cursor() as cur:
+                # Imposta lo schema come search_path
+                logger.info(f"📌 Imposto search_path su schema: {schema}")
+                cur.execute(f"SET search_path TO {schema};")
+
                 final_result = None
-                for statement in query.split(';'):
+                for statement in query.split(";"):
                     statement = statement.strip()
                     if not statement:
                         continue
@@ -135,9 +152,15 @@ def run_query(query, env="dev"):
                         rows = cur.fetchall()
                         final_result = [dict(zip(cols, row)) for row in rows]
                     else:
-                        final_result = [{"message": "Query eseguita con successo (nessun risultato)."}]
+                        final_result = [
+                            {
+                                "message": "Query eseguita con successo (nessun risultato)."
+                            }
+                        ]
 
-                return final_result or [{"message": "Nessun risultato utile da mostrare."}]
+                return final_result or [
+                    {"message": "Nessun risultato utile da mostrare."}
+                ]
     except Exception as e:
         logger.error("Errore nell'esecuzione della query: %s", e)
         return [{"error": str(e)}]
@@ -148,7 +171,7 @@ def get_table_fullnames(env="dev"):
     Esegue la SELECT su pg_catalog.pg_tables e
     restituisce una lista di 'schemaname.tablename'.
     """
-    rows = run_query(DEFAULT_QUERY, env=env)
+    rows = run_query(GET_TABLE_LIST, env=env)
     if not isinstance(rows, list):
         # in caso di errore o messaggio, ritorna lista vuota
         return []

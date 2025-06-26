@@ -75,7 +75,7 @@ def index():
     if isinstance(result, list) and len(result) == 0:
         result = "Nessun risultato trovato per la query eseguita."
 
-    logger.info(result)
+    smart_log(result)
     return render_template(
         "index.html",
         result=result,
@@ -178,6 +178,16 @@ def config():
         config=config_data,
         selected_env=selected_env
     )
+
+def truncate_log(data, max_length=500):
+    text = str(data)
+    return text[:max_length] + ("..." if len(text) > max_length else "")
+
+def smart_log(result):
+    if isinstance(result, list):
+        logger.info(f"📊 Query restituita: {len(result)} righe.")
+    else:
+        logger.info(f"📊 Risultato: {truncate_log(result)}")
 
 
 if __name__ == "__main__":
