@@ -3,6 +3,8 @@ import json
 import psycopg
 from dotenv import load_dotenv
 import logging
+from functools import lru_cache
+
 
 # Logging
 logging.basicConfig(
@@ -49,7 +51,14 @@ ORDER BY
     trigger_name;
 """
 
+def log_entry(fn):
+    def wrapper(*args, **kwargs):
+        logger.info(f"--- execute {fn.__name__}")
+        return fn(*args, **kwargs)
+    return wrapper
 
+@log_entry
+@lru_cache(maxsize=None)
 def load_db_config(env: str = None):
     """Carica config da .env.<env>, ENV standard o db_config.json"""
     env_file = f".env.{env}" if env else ".env"
@@ -66,7 +75,8 @@ def load_db_config(env: str = None):
         "schema": os.getenv("DB_SCHEMA"),
     }
 
-    logger.info(f"📦 Config caricato: {config}")
+    safe_config = {k: v if k != "password" else "****" for k, v in config.items()}
+    logger.info(f"📦 Config caricato: {safe_config}")
 
     if os.path.exists(CONFIG_FILE):
         try:
@@ -81,13 +91,13 @@ def load_db_config(env: str = None):
 
     return config
 
-
+@log_entry
 def get_db_info(env="dev"):
     """Ritorna solo i dati non sensibili per visualizzazione UI."""
     config = load_db_config(env)
     return {k: config[k] for k in ("host", "port", "name", "user", "schema")}
 
-
+@log_entry
 def get_default_tables(env="dev"):
     logger.info("Esecuzione query default per elencare le tabelle.")
     result = run_query(GET_TABLE_LIST, env=env)
@@ -100,10 +110,9 @@ def get_default_tables(env="dev"):
     # se result è già una lista di dict, basta serializzarla
     return json.dumps(result, ensure_ascii=False)
 
-
-def get_connection(env=None):
+@log_entry
+def get_connection(env=None, config=None):
     logger.info("Inizio connessione DB...")
-    config = load_db_config(env)
     logger.info(
         f"🔍 Tentativo connessione a {config['host']}:{config['port']}, DB: {config['name']}"
     )
@@ -122,7 +131,7 @@ def get_connection(env=None):
         logger.exception("❌ Errore nella connessione al database.")
         raise
 
-
+@log_entry
 def run_query(query, env="dev"):
     """
     Esegue una o più query separate da ';'.
@@ -134,7 +143,7 @@ def run_query(query, env="dev"):
         config = load_db_config(env)
         schema = config.get("schema") or "public"
 
-        with get_connection(env) as conn:
+        with get_connection(env=env, config=config) as conn:
             with conn.cursor() as cur:
                 # Imposta lo schema come search_path
                 logger.info(f"📌 Imposto search_path su schema: {schema}")
@@ -165,7 +174,7 @@ def run_query(query, env="dev"):
         logger.error("Errore nell'esecuzione della query: %s", e)
         return [{"error": str(e)}]
 
-
+@log_entry
 def get_table_fullnames(env="dev"):
     """
     Esegue la SELECT su pg_catalog.pg_tables e
