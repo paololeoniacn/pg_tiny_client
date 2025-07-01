@@ -6,7 +6,7 @@
 <form method="GET" action="{{ url_for('config') }}" class="mb-6">
     <label for="env" class="block font-semibold mb-1">Ambiente</label>
     <select name="env" id="env" onchange="this.form.submit()" class="p-2 border rounded">
-        {% for env in ["dev", "prod", "test"] %}
+        {% for env in ["dev", "prod", "test", "custom"] %}
             <option value="{{ env }}" {% if selected_env == env %}selected{% endif %}>{{ env|capitalize }}</option>
         {% endfor %}
     </select>

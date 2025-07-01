@@ -4,8 +4,6 @@ services:
     ports:
       - "8000:8000"
     container_name: secure_pg_client
-    env_file:
-      - .env
     restart: on-failure
     volumes:
       - ./data:/app/data 

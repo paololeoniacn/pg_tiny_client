@@ -1,5 +1,45 @@
 [
   {
+    "timestamp": "2025-06-27T09:45:09",
+    "query": "SELECT 1;"
+  },
+  {
+    "timestamp": "2025-06-27T09:42:39",
+    "query": "SET search_path TO mitur_test;\nSELECT * from info_in_aem_fdb limit 50 ;"
+  },
+  {
+    "timestamp": "2025-06-26T16:21:32",
+    "query": "SELECT COUNT(*), usename\nFROM pg_stat_activity\nGROUP BY usename;"
+  },
+  {
+    "timestamp": "2025-06-26T16:06:31",
+    "query": "SELECT * from cdp_in_put ORDER BY id DESC LIMIT 50 ;"
+  },
+  {
+    "timestamp": "2025-06-26T16:04:34",
+    "query": "SELECT * from cdp_in_put LIMIT 50 ;"
+  },
+  {
+    "timestamp": "2025-06-26T14:52:45",
+    "query": "SELECT * from info_in_aem_fdb LIMIT 50 ;"
+  },
+  {
+    "timestamp": "2025-06-26T07:50:10",
+    "query": "SELECT * from anag_parameter ;"
+  },
+  {
+    "timestamp": "2025-06-26T07:14:13",
+    "query": "SELECT * from info_in_aem_fdb ;"
+  },
+  {
+    "timestamp": "2025-06-26T07:13:55",
+    "query": "SELECT * from info_in_aem_fdb WHERE identifier = 'SL-SI-218723-0-55';"
+  },
+  {
+    "timestamp": "2025-06-25T16:27:57",
+    "query": "SELECT 1"
+  },
+  {
     "timestamp": "2025-06-25T15:08:03",
     "query": "SET search_path TO mitur_test;\nSELECT * from info_in_aem_fdb ;"
   },
@@ -38,45 +78,5 @@
   {
     "timestamp": "2025-06-18T16:11:45",
     "query": "SELECT * from mitur_prod.mt_activity_log ORDER BY id_log DESC LIMIT 50\nSELECT \n    t1.*,\n    t2.*\nFROM \n    mitur_prod.info_in_aem_fdb t1\nJOIN \n    mitur_prod.mt_activity_log t2\n    ON t1.id = t2.id_request\nWHERE \n    t1.identifier = 'SL-VR-406305-0-55'\nORDER BY t1.id DESC;"
-  },
-  {
-    "timestamp": "2025-06-18T13:54:24",
-    "query": "SELECT \n    t1.*,\n    t2.*\nFROM \n    mitur_prod.info_in_aem_fdb t1\nJOIN \n    mitur_prod.mt_activity_log t2\n    ON t1.id = t2.id_request\nWHERE \n    t1.identifier = 'UL-TV-431269-1-79'\nORDER BY t1.id DESC;"
-  },
-  {
-    "timestamp": "2025-06-18T13:54:12",
-    "query": "SELECT \n    t1.*,\n    t2.*\nFROM \n    mitur_prod.info_in_aem_fdb t1\nJOIN \n    mitur_prod.mt_activity_log t2\n    ON t1.id = t2.id_request\nWHERE \n    t2.identifier = 'UL-TV-431269-1-79'\nORDER BY t1.id DESC;"
-  },
-  {
-    "timestamp": "2025-06-18T13:26:51",
-    "query": "SELECT \n    t1.*,\n    t2.*\nFROM \n    mitur_prod.info_in_aem_fdb t1\nJOIN \n    mitur_prod.mt_activity_log t2\n    ON t1.id = t2.id_request\nWHERE \n    t1.status = 'E'\nORDER BY t1.id DESC;"
-  },
-  {
-    "timestamp": "2025-06-18T13:26:40",
-    "query": "SELECT \n    t1.*,\n    t2.*\nFROM \n    mitur_prod.info_in_aem_fdb t1\nJOIN \n    mitur_prod.mt_activity_log t2\n    ON t1.id = t2.id_request\nWHERE \n    t1.status = 'E';\nORDER BY t1.id DESC"
-  },
-  {
-    "timestamp": "2025-06-18T13:26:29",
-    "query": "SELECT \n    t1.*,\n    t2.*\nFROM \n    mitur_prod.info_in_aem_fdb t1\nJOIN \n    mitur_prod.mt_activity_log t2\n    ON t1.id = t2.id_request\nWHERE \n    t1.status = 'E';\nORDER BY id DESC"
-  },
-  {
-    "timestamp": "2025-06-18T13:20:57",
-    "query": "SELECT \n    t1.*,\n    t2.*\nFROM \n    mitur_prod.info_in_aem_fdb t1\nJOIN \n    mitur_prod.mt_activity_log t2\n    ON t1.id = t2.id_request\nWHERE \n    t1.status = 'E';"
-  },
-  {
-    "timestamp": "2025-06-18T13:18:40",
-    "query": "SELECT * from mitur_prod.info_in_aem_fdb ORDER BY id DESC LIMIT 50"
-  },
-  {
-    "timestamp": "2025-06-18T13:16:27",
-    "query": "SELECT * from mitur_prod.mt_activity_log ORDER BY id_log DESC LIMIT 50"
-  },
-  {
-    "timestamp": "2025-06-18T13:15:43",
-    "query": "SELECT * from mitur_prod.mt_activity_log LIMIT 50"
-  },
-  {
-    "timestamp": "2025-06-18T13:10:20",
-    "query": "SELECT * from mitur_test.info_in_put LIMIT 100"
   }
 ]

@@ -1,6 +1,6 @@
 import os
 import json
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, session
 from db import (
     run_query,
     get_db_info,
@@ -23,12 +23,14 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-app.secret_key = "your-secret-key"  # Necessario per flash messages
+app.secret_key = "your-secret-key" 
 
 
 @app.context_processor
 def inject_globals():
-    selected_env = safe_env(request.args.get("env", "dev"))
+    selected_env = safe_env(request.args.get("env") or session.get("selected_env") or "dev")
+    session["selected_env"] = selected_env
+
     return dict(
         db_info=get_db_info(selected_env),
         table_list=get_table_fullnames(selected_env)
@@ -52,9 +54,13 @@ def internal_error(e):
 
 @app.route("/", methods=["GET", "POST"])
 def index():
-    selected_env = safe_env(request.args.get("env", "dev"))
+    selected_env = safe_env(request.args.get("env") or session.get("selected_env") or "dev")
+    session["selected_env"] = selected_env
+
+    result = get_default_tables(env=selected_env)
+
     raw_query = request.form.get("query")
-    result = None
+
     cleaned_query = ""
 
     timestamp = datetime.datetime.now(ZoneInfo("Europe/Rome")).strftime("%Y-%m-%d %H:%M:%S")
@@ -131,7 +137,9 @@ def save_query_to_history(query: str):
 
 @app.route("/triggers", methods=["GET"])
 def show_triggers():
-    selected_env = safe_env(request.args.get("env", "dev"))
+    selected_env = safe_env(request.args.get("env") or session.get("selected_env") or "dev")
+    session["selected_env"] = selected_env
+
     result = run_query(TRIGGER_QUERY, env=selected_env)
     return render_template(
         "index.html",
@@ -141,8 +149,14 @@ def show_triggers():
 
 @app.route("/config", methods=["GET", "POST"])
 def config():
-    selected_env = safe_env(request.args.get("env") or request.form.get("env") or "dev")
-    env_filename = f"env.{selected_env}"
+    selected_env = safe_env(
+        request.args.get("env") or 
+        request.form.get("env") or 
+        session.get("selected_env") or 
+        "dev"
+    )
+    session["selected_env"] = selected_env
+    env_filename = f".env.{selected_env}"
 
     if request.method == "POST":
         if "delete" in request.form:
@@ -150,9 +164,8 @@ def config():
                 os.remove(env_filename)
                 flash(f"Configurazione '{env_filename}' eliminata.", "warning")
             else:
-                flash("Nessun file di configurazione da eliminare.", "info")
+                flash(f"Nessun file di configurazione '{env_filename}' da eliminare.", "info")
         else:
-            # Salvataggio nuovo contenuto
             with open(env_filename, "w") as f:
                 f.write(f"DB_HOST={request.form['host']}\n")
                 f.write(f"DB_PORT={request.form['port']}\n")
@@ -161,10 +174,8 @@ def config():
                 f.write(f"DB_PASSWORD={request.form['password']}\n")
             flash(f"Configurazione '{env_filename}' salvata con successo!", "success")
 
-    # Carica valori correnti, se esistono
     config_data = dotenv_values(env_filename) if os.path.exists(env_filename) else {}
 
-    # Prepara dati per il form
     config_data = {
         "host": config_data.get("DB_HOST", ""),
         "port": config_data.get("DB_PORT", ""),
@@ -178,6 +189,7 @@ def config():
         config=config_data,
         selected_env=selected_env
     )
+
 
 def truncate_log(data, max_length=500):
     text = str(data)

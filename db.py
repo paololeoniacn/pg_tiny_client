@@ -1,7 +1,7 @@
 import os
 import json
 import psycopg
-from dotenv import load_dotenv
+from dotenv import dotenv_values
 import logging
 from functools import lru_cache
 
@@ -12,12 +12,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Carica .env
-load_dotenv()
-logger.info("Variabili d'ambiente caricate.")
-
 # Ambienti supportati
-VALID_ENVS = {"dev", "prod", "test"}
+VALID_ENVS = {"dev", "prod", "test", "custom"}
 
 
 def safe_env(env):
@@ -60,39 +56,33 @@ def log_entry(fn):
 @log_entry
 @lru_cache(maxsize=None)
 def load_db_config(env: str = None):
-    """Carica config da .env.<env>, ENV standard o db_config.json"""
-    env_file = f".env.{env}" if env else ".env"
+    """Carica config da .env.{env}"""
+    env = env or "dev"
+    env_file = f".env.{env}"
     if os.path.exists(env_file):
-        load_dotenv(env_file, override=True)
+        config_values = dotenv_values(env_file)
         logger.info(f"✅ Configurazione DB caricata da {env_file}")
+    else:
+        logger.warning(f"⚠️ File di configurazione {env_file} non trovato.")
+        config_values = {}
 
     config = {
-        "host": os.getenv("DB_HOST"),
-        "port": os.getenv("DB_PORT"),
-        "name": os.getenv("DB_NAME") or "postgres",
-        "user": os.getenv("DB_USER"),
-        "password": os.getenv("DB_PASSWORD"),
-        "schema": os.getenv("DB_SCHEMA"),
+        "host": config_values.get("DB_HOST"),
+        "port": config_values.get("DB_PORT"),
+        "name": config_values.get("DB_NAME") or "postgres",
+        "user": config_values.get("DB_USER"),
+        "password": config_values.get("DB_PASSWORD"),
+        "schema": config_values.get("DB_SCHEMA") or "public",
     }
 
     safe_config = {k: v if k != "password" else "****" for k, v in config.items()}
     logger.info(f"📦 Config caricato: {safe_config}")
 
-    if os.path.exists(CONFIG_FILE):
-        try:
-            with open(CONFIG_FILE) as f:
-                file_config = json.load(f)
-                logger.info("✅ Configurazione DB letta da db_config.json")
-                config.update({k: v for k, v in file_config.items() if v})
-        except Exception as e:
-            logger.warning("⚠️ Errore nella lettura di db_config.json: %s", e)
-    else:
-        logger.info("✅ Configurazione DB letta da ENV")
-
     return config
 
+
 @log_entry
-def get_db_info(env="dev"):
+def get_db_info(env):
     """Ritorna solo i dati non sensibili per visualizzazione UI."""
     config = load_db_config(env)
     return {k: config[k] for k in ("host", "port", "name", "user", "schema")}
